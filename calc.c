@@ -3,10 +3,12 @@
 #include <ctype.h>
 #include <bigInteger.h>
 #include <string.h>
+#include <utilities.h>
 
 #define PROMPT "Calc> "
 #define EXIT_STRING "Exit"
 
+// Prints the given number passed as a string with its sign
 void printNumber (char *string, int n, int sign, void *ptr) {
   if (sign == -1) printf("-");
   int i;
@@ -16,33 +18,8 @@ void printNumber (char *string, int n, int sign, void *ptr) {
   else printf("%s\n", string+i);
 }
 
-// Checks if given character is present in string str
-int isCharInString(char c, char *str) {
-    for(int i=0; str[i] != '\0'; ++i) {
-        if(c == str[i]) return 1;
-    }
-    return 0;
-}
-
-void removeJunkCharacters(char *str) {
-    char removeChars[] = {' ', '\t', '\r', '\n'};
-    int k=0;
-    for(int i = 0; str[i] != '\0'; ++i) {
-        if(!isCharInString(str[i], removeChars))
-            str[k++] = str[i];
-    }
-    str[k] = '\0';
-}
-
-int isArithmeticOp(char c) {
-  char ops[] = {'+', '-', '*', '/'};
-  return isCharInString(c, ops);
-}
-
-int isStringEmpty(char *str) {
-  return !str || !strcmp(str, "\0") || !strlen(str);
-}
-
+// Calls the corresponding BigInt function passed as function pointer
+// to perform the arithmetic operation and print the result
 int doOpAndPrint (BigInteger *a, BigInteger *b, BigInteger* (*operation)
                                                         (BigInteger*, BigInteger*)) {
   BigInteger *c = (*operation)(a, b);
@@ -52,6 +29,8 @@ int doOpAndPrint (BigInteger *a, BigInteger *b, BigInteger* (*operation)
   return 0;
 }
 
+// Processes the given input by searching for 2 integers and a binary operation,
+// Returns 0 if the operation was successful
 int processInput(char *input) {
   if (isStringEmpty(input))
     return -1;
@@ -59,13 +38,19 @@ int processInput(char *input) {
   int start_i = 0, status = 0;
   BigInteger *a, *b;
   for (int i = 0; input[i] != '\0'; ++i) {
+    if (status) {
+      if (a) free(a);
+      return status;
+    }
     if (isdigit(input[i])) continue;
     else if (isArithmeticOp(input[i])) {
       if (start_i == i) {
+        // If it is the sign of the number instead of operator
         if ((input[i] == '+' || input[i] == '-') && isdigit(input[i+1]))
           continue;
-        else return -1;
+        else status = -1;
       } else {
+        // If no operator was parsed till now, store it as op
         if (!isArithmeticOp(op)) {
           op = input[i];
           input[i] = '\0';
@@ -73,17 +58,15 @@ int processInput(char *input) {
           input[i] = op;
           start_i = i+1;
         }
-        else
-          return -1;
+        else status = -1;
       }
     } else {
-      return -1;
+      // If the char is neither a digit nor an arithmetic symbol, input format is illegal
+      status = -1;
     }
   }
   if (!isArithmeticOp(op)) return -3;
   b = parseToBigInt(input+start_i);
-  //BigInt_map(a, &printNumber, NULL);
-  //BigInt_map(b, &printNumber, NULL);
   if (!a || !b) return -2;
   switch (op) {
     case '+':
@@ -99,7 +82,7 @@ int processInput(char *input) {
       status = doOpAndPrint(a, b, &divideBigInt);
       break;
     default:
-      status = -1;
+      status = -3;
   }
   free(a);
   free(b);
@@ -123,14 +106,5 @@ void calc_loop() {
 
 int main () {
   calc_loop();
-  /*BigInteger *a = parseToBigInt("34");
-  BigInteger *b = parseToBigInt("-2");
-  BigInteger *c = addBigInt(a, b);
-  BigInt_map(c, &printNumber, NULL);
-  c = addBigInt(a, b);
-  a = parseToBigInt("34");
-  b = parseToBigInt("-2");
-  c = addBigInt(a, b);
-  BigInt_map(c, &printNumber, NULL);*/
   return 0;
 }
